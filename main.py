@@ -48,27 +48,23 @@ async def handle_text(client, message):
             response = requests.get(url, headers=headers, params=querystring, timeout=20)
             data = response.json()
             
-            # API ke JSON response ke andar se download link nikalna
+            # JSON ke har possible jagah se link dhoondhna
             direct_url = None
             try:
+                # Agar 'data' dictionary hai
                 if isinstance(data, dict):
-                    inner_data = data.get("data", {})
-                    if isinstance(inner_data, dict):
-                        direct_url = (
-                            inner_data.get("download_link") 
-                            or inner_data.get("url") 
-                            or inner_data.get("link") 
-                            or inner_data.get("dlink")
-                            or inner_data.get("download")
-                        )
+                    # 1. Direct keys check karo
+                    direct_url = data.get("download_link") or data.get("link") or data.get("url") or data.get("download") or data.get("dlink")
                     
-                    if not direct_url:
-                        direct_url = (
-                            data.get("download_url") 
-                            or data.get("link") 
-                            or data.get("url") 
-                            or data.get("download")
-                        )
+                    # 2. 'data' sub-object check karo
+                    if not direct_url and isinstance(data.get("data"), dict):
+                        sub = data.get("data")
+                        direct_url = sub.get("download_link") or sub.get("link") or sub.get("url") or sub.get("download") or sub.get("dlink")
+                        
+                        # 3. 'structure' sub-object check karo
+                        if not direct_url and isinstance(sub.get("structure"), dict):
+                            st = sub.get("structure")
+                            direct_url = st.get("download_link") or st.get("link") or st.get("url") or st.get("download") or st.get("dlink") or st.get("down_url") or st.get("direct_link")
             except:
                 pass
             
@@ -81,11 +77,12 @@ async def handle_text(client, message):
                     reply_markup=keyboard
                 )
             else:
+                # Agar phir bhi link nahi mila toh poora response print karwa lo taaki key pata chal jaye
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("📥 Open TeraBox Link", url=text)]
                 ])
                 await msg.edit_text(
-                    f"⚠️ Response mil gaya par link key alag hai. Full response:\n`{str(data)[:200]}`",
+                    f"⚠️ Full JSON Response:\n`{str(data)[:350]}`",
                     reply_markup=keyboard
                 )
         except Exception as e:
