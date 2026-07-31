@@ -29,7 +29,7 @@ async def start_command(client, message):
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_text(client, message):
     text = message.text
-    if "terabox" in text.lower():
+    if any(domain in text.lower() for domain in ["terabox", "terashare", "terasharefile", "tera"]):
         await message.reply_text(f"Aapne Terabox link bheja hai: {text}\n(Yahan aap apna download logic laga sakte hain)")
     else:
         await message.reply_text("Kripya ek valid TeraBox link bhejiye.")
