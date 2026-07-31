@@ -48,8 +48,29 @@ async def handle_text(client, message):
             response = requests.get(url, headers=headers, params=querystring, timeout=20)
             data = response.json()
             
-            # Response se direct link nikalna
-            direct_url = data.get("download_url") or data.get("link") or data.get("url") or data.get("download")
+            # API ke JSON response ke andar se download link nikalna
+            direct_url = None
+            try:
+                if isinstance(data, dict):
+                    inner_data = data.get("data", {})
+                    if isinstance(inner_data, dict):
+                        direct_url = (
+                            inner_data.get("download_link") 
+                            or inner_data.get("url") 
+                            or inner_data.get("link") 
+                            or inner_data.get("dlink")
+                            or inner_data.get("download")
+                        )
+                    
+                    if not direct_url:
+                        direct_url = (
+                            data.get("download_url") 
+                            or data.get("link") 
+                            or data.get("url") 
+                            or data.get("download")
+                        )
+            except:
+                pass
             
             if direct_url:
                 keyboard = InlineKeyboardMarkup([
@@ -64,7 +85,7 @@ async def handle_text(client, message):
                     [InlineKeyboardButton("📥 Open TeraBox Link", url=text)]
                 ])
                 await msg.edit_text(
-                    f"⚠️ Response: {str(data)[:100]}...\nAap is button se open kar sakte hain:",
+                    f"⚠️ Response mil gaya par link key alag hai. Full response:\n`{str(data)[:200]}`",
                     reply_markup=keyboard
                 )
         except Exception as e:
