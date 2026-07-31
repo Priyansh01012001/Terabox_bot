@@ -5,7 +5,6 @@ from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Flask dummy server taaki Render ka port wala error na aaye
 app_web = Flask(__name__)
 
 @app_web.route('/')
@@ -21,11 +20,15 @@ API_ID = int(os.environ.get("API_ID", "YOUR_API_ID"))
 API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
 
+# Teri RapidAPI Key aur Host
+RAPIDAPI_KEY = "f52c8a1e41mshf5f5759d6b6e08bp1152efjsna891dad886b0"
+RAPIDAPI_HOST = "terabox-direct-download.p.rapidapi.com"
+
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
-    await message.reply_text("Hello! Main TeraBox bot hoon. Mujhe TeraBox ka link bhejo, main direct link nikalne ki koshish karta hoon.")
+    await message.reply_text("Hello! Main TeraBox bot hoon. Mujhe TeraBox ka link bhejo, main direct link nikal kar deta hoon.")
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_text(client, message):
@@ -34,44 +37,47 @@ async def handle_text(client, message):
         msg = await message.reply_text("🔍 TeraBox link se direct video link extract kiya ja raha hai...")
         
         try:
-            # Free public parser endpoint / wrapper
-            api_url = f"https://terabox-dl.red-devils-api.workers.dev/?url={text}"
-            response = requests.get(api_url, timeout=10)
+            url = "https://terabox-direct-download.p.rapidapi.com/"
+            
+            # C-URL ke mutabiq 'link' parameter use hoga
+            querystring = {"link": text}
+
+            headers = {
+                "Content-Type": "application/json",
+                "x-rapidapi-host": RAPIDAPI_HOST,
+                "x-rapidapi-key": RAPIDAPI_KEY
+            }
+
+            response = requests.get(url, headers=headers, params=querystring, timeout=15)
             data = response.json()
             
-            # Agar direct link mil gaya
-            if "download_url" in data or "link" in data:
-                direct_url = data.get("download_url") or data.get("link")
-                
+            # API response se direct link nikalna (keys ko handle karte hue)
+            direct_url = data.get("download_link") or data.get("link") or data.get("url") or data.get("downloadUrl")
+            
+            if direct_url:
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("📥 Download Video Now", url=direct_url)]
                 ])
-                
                 await msg.edit_text(
                     "✅ **Direct Video Link Found!**\n\nNiche diye gaye button par click karke seedha download karein:",
                     reply_markup=keyboard
                 )
             else:
-                # Agar API se direct link na mile toh normal link button bhej do
+                # Agar JSON mein direct key alag naam se ho to pura data print ya fallback
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("📥 Open TeraBox Link", url=text)]
                 ])
                 await msg.edit_text(
-                    "⚠️ Direct link fetch nahi ho paya. Aap is button se open kar sakte hain:",
+                    f"⚠️ Response: {str(data)[:100]}...\nAap is button se open kar sakte hain:",
                     reply_markup=keyboard
                 )
         except Exception as e:
-            # Fallback agar API down ho
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Open Link", url=text)]
             ])
-            await msg.edit_text(
-                "✅ **TeraBox Link Processed!**\n\nButton par click karein:",
-                reply_markup=keyboard
-            )
+            await msg.edit_text(f"❌ Error: {str(e)}", reply_markup=keyboard)
     else:
         await message.reply_text("Kripya ek valid TeraBox link bhejiye.")
 
 print("Bot is starting...")
 app.run()
-
