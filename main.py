@@ -20,9 +20,8 @@ API_ID = int(os.environ.get("API_ID", "YOUR_API_ID"))
 API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
 
-# Teri RapidAPI Key aur Host
 RAPIDAPI_KEY = "f52c8a1e41mshf5f5759d6b6e08bp1152efjsna891dad886b0"
-RAPIDAPI_HOST = "terabox-direct-download.p.rapidapi.com"
+RAPIDAPI_HOST = "terabox-downloader15.p.rapidapi.com"
 
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -37,22 +36,21 @@ async def handle_text(client, message):
         msg = await message.reply_text("🔍 TeraBox link se direct video link extract kiya ja raha hai...")
         
         try:
-            url = "https://terabox-direct-download.p.rapidapi.com/"
+            url = "https://terabox-downloader15.p.rapidapi.com/tbx.php"
             
-            # C-URL ke mutabiq 'link' parameter use hoga
-            querystring = {"link": text}
-
+            payload = {"url": text}
             headers = {
-                "Content-Type": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
                 "x-rapidapi-host": RAPIDAPI_HOST,
                 "x-rapidapi-key": RAPIDAPI_KEY
             }
 
-            response = requests.get(url, headers=headers, params=querystring, timeout=15)
+            # POST request bhej rahe hain
+            response = requests.post(url, data=payload, headers=headers, timeout=20)
             data = response.json()
             
-            # API response se direct link nikalna (keys ko handle karte hue)
-            direct_url = data.get("download_link") or data.get("link") or data.get("url") or data.get("downloadUrl")
+            # Response se direct link nikalna (keys adjust kar rahe hain)
+            direct_url = data.get("download_url") or data.get("link") or data.get("url") or data.get("download")
             
             if direct_url:
                 keyboard = InlineKeyboardMarkup([
@@ -63,7 +61,6 @@ async def handle_text(client, message):
                     reply_markup=keyboard
                 )
             else:
-                # Agar JSON mein direct key alag naam se ho to pura data print ya fallback
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("📥 Open TeraBox Link", url=text)]
                 ])
@@ -81,3 +78,4 @@ async def handle_text(client, message):
 
 print("Bot is starting...")
 app.run()
+
