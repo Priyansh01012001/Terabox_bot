@@ -21,7 +21,7 @@ API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
 
 RAPIDAPI_KEY = "f52c8a1e41mshf5f5759d6b6e08bp1152efjsna891dad886b0"
-RAPIDAPI_HOST = "terabox-direct-download.p.rapidapi.com"
+RAPIDAPI_HOST = "terabox-downloader-online-viewer-player-api.p.rapidapi.com"
 
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -36,9 +36,9 @@ async def handle_text(client, message):
         msg = await message.reply_text("🔍 TeraBox link se direct video link extract kiya ja raha hai...")
         
         try:
-            url = "https://terabox-direct-download.p.rapidapi.com/"
+            url = "https://terabox-downloader-online-viewer-player-api.p.rapidapi.com/rapidapi"
             
-            querystring = {"link": text}
+            querystring = {"url": text}
             headers = {
                 "Content-Type": "application/json",
                 "x-rapidapi-host": RAPIDAPI_HOST,
@@ -49,7 +49,7 @@ async def handle_text(client, message):
             data = response.json()
             
             # Response se direct link nikalna
-            direct_url = data.get("download_link") or data.get("link") or data.get("url") or data.get("download")
+            direct_url = data.get("download_url") or data.get("link") or data.get("url") or data.get("download")
             
             if direct_url:
                 keyboard = InlineKeyboardMarkup([
