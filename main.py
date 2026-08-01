@@ -30,14 +30,10 @@ async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
 async def get_direct_video_link(url, ndus_cookie):
-    async with async_playwright() as p:
         browser = await p.chromium.launch(
-            executable_path="/opt/render/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
             headless=True, 
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
-        context = await browser.new_context()
-        
         await context.add_cookies([{
             "name": "ndus",
             "value": ndus_cookie,
