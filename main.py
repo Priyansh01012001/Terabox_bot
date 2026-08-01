@@ -1,4 +1,5 @@
 import os
+import glob
 import threading
 import asyncio
 import wget
@@ -29,31 +30,35 @@ app = Client("terabox_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
+def find_chromium_path():
+    # Render ke path par jaakar khud chromium ka executable dhund lega chahe version koi bhi ho
+    patterns = [
+        "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
+        "/opt/render/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell",
+        "/root/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"
+    ]
+    for pattern in patterns:
+        matches = glob.glob(pattern)
+        if matches:
+            return matches[0]
+    return None
+
 async def get_direct_video_link(url, ndus_cookie):
     async with async_playwright() as p:
-        browser = None
-        # Render ke liye multiple paths try karega taaki chromium mil jaye
-        possible_paths = [
-            "/opt/render/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
-            "/opt/render/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
-            None
-        ]
+        executable_path = find_chromium_path()
         
-        for path in possible_paths:
-            try:
-                launch_args = {
-                    "headless": True,
-                    "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-                }
-                if path and os.path.exists(path):
-                    launch_args["executable_path"] = path
-                
-                browser = await p.chromium.launch(**launch_args)
-                break
-            except Exception:
-                continue
-                
-        if not browser:
+        launch_options = {
+            "headless": True,
+            "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        }
+        
+        if executable_path and os.path.exists(executable_path):
+            launch_options["executable_path"] = executable_path
+
+        try:
+            browser = await p.chromium.launch(**launch_options)
+        except Exception as e:
+            print(f"Browser Launch Failed: {e}")
             return None
 
         context = await browser.new_context()
@@ -72,7 +77,7 @@ async def get_direct_video_link(url, ndus_cookie):
         try:
             def handle_request(req):
                 nonlocal download_url
-                if ".mp4" in req.url or "d.terabox.com/file" in req.url or "dl" in req.url:
+                if ".mp4" in req.url or "d.terabox.com/file" in req.url:
                     download_url = req.url
 
             page.on("request", handle_request)
