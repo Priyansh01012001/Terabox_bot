@@ -33,19 +33,31 @@ def get_video_with_ytdlp(url, ndus_cookie):
         'format': 'best',
         'quiet': True,
         'no_warnings': True,
+        'socket_timeout': 30,
     }
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    }
+    
     if ndus_cookie:
-        # Cookies pass karne ke liye headers ya cookie file use hoti hai
-        ydl_opts['http_headers'] = {'Cookie': f'ndus={ndus_cookie}'}
+        headers['Cookie'] = f'ndus={ndus_cookie}'
+        
+    ydl_opts['http_headers'] = headers
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            # Direct video download link nikal lega
-            return info.get('url') or ydl.prepare_filename(info)
+            if 'url' in info:
+                return info['url']
+            elif 'formats' in info:
+                for f in info['formats']:
+                    if f.get('url'):
+                        return f['url']
     except Exception as e:
         print(f"YTDLP Error: {e}")
         return None
+    return None
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_terabox(client, message):
