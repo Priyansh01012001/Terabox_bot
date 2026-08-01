@@ -1,6 +1,7 @@
 import os
 import threading
 import asyncio
+import wget
 from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -30,10 +31,13 @@ async def start_command(client, message):
 
 async def get_direct_video_link(url, ndus_cookie):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+        browser = await p.chromium.launch(
+            executable_path="/opt/render/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
+            headless=True, 
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        )
         context = await browser.new_context()
         
-        # Cookie set karte hain taaki login ki tarah kaam kare
         await context.add_cookies([{
             "name": "ndus",
             "value": ndus_cookie,
@@ -45,26 +49,14 @@ async def get_direct_video_link(url, ndus_cookie):
         download_url = None
         
         try:
-            # Video stream request pakadne ke liye listener
             def handle_request(req):
                 nonlocal download_url
                 if ".mp4" in req.url or "d.terabox.com/file" in req.url:
                     download_url = req.url
 
             page.on("request", handle_request)
-            
             await page.goto(url, timeout=60000)
-            await asyncio.sleep(7) # Page load hone ka wait
-            
-            # Download button click karne ki koshish agar page par ho
-            try:
-                download_btn = page.locator("text=Download").first
-                if await download_btn.isVisible():
-                    await download_btn.click()
-                    await asyncio.sleep(3)
-            except:
-                pass
-
+            await asyncio.sleep(7)
         except Exception as e:
             print(f"Playwright Error: {e}")
             
@@ -82,7 +74,6 @@ async def handle_terabox(client, message):
             
             if direct_link:
                 await msg.edit_text("📤 Video mil gayi, download karke bhej rahe hain...")
-                import wget
                 video_path = wget.download(direct_link, out="video.mp4")
                 
                 if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
