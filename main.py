@@ -1,8 +1,12 @@
 import os
 import threading
-import requests
+import subprocess
+import yt_dlp
 from flask import Flask
 from pyrogram import Client, filters
+
+# Upgrade yt-dlp on startup
+subprocess.run(["pip", "install", "--upgrade", "yt-dlp"])
 
 app_web = Flask(__name__)
 
@@ -29,56 +33,31 @@ async def start_command(client, message):
 async def handle_terabox(client, message):
     text = message.text.strip()
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("📥 Link process ho raha hai...")
+        msg = await message.reply_text("📥 Video download ho rahi hai...")
         
         clean_url = text.split()[0]
         output_filename = "video.mp4"
         
+        ydl_opts = {
+            'format': 'best',
+            'outtmpl': output_filename,
+            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
+            'quiet': True,
+        }
+        
         try:
-            session = requests.Session()
-            # Load cookie if exists
-            cookies = {}
-            if os.path.exists('cookies.txt'):
-                cookies['ndus'] = "YVOf2LVPeHuiSROI62W-_icpi1Ifdv-FV_QuBXQ"
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://www.terabox.com/'
-            }
-            
-            # Request sharing page
-            resp = session.get(clean_url, headers=headers, cookies=cookies, allow_redirects=True, timeout=30)
-            
-            if resp.status_code == 200:
-                # Basic extraction logic for direct stream
-                # If direct page html contains dlink, grab it
-                import re
-                dlink_match = re.search(r'"dlink"\s*:\s*"([^"]+)"', resp.text)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([clean_url])
                 
-                if dlink_match:
-                    download_url = dlink_match.group(1).replace(r'\/', '/')
-                    
-                    await msg.edit_text("📥 Video download ho rahi hai...")
-                    vid_data = session.get(download_url, headers=headers, cookies=cookies, stream=True, timeout=60)
-                    
-                    with open(output_filename, 'wb') as f:
-                        for chunk in vid_data.iter_content(chunk_size=1024*1024):
-                            if chunk:
-                                f.write(chunk)
-                                
-                    if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
-                        await message.reply_video(
-                            video=output_filename,
-                            caption="✅ Yeh lo tumhari video!"
-                        )
-                        os.remove(output_filename)
-                        await msg.delete()
-                    else:
-                        await msg.edit_text("❌ File download nahi ho payi.")
-                else:
-                    await msg.edit_text("❌ Cookies ya link expired hai, dlink nahi mila page par.")
+            if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
+                await message.reply_video(
+                    video=output_filename,
+                    caption="✅ Yeh lo tumhari video!"
+                )
+                os.remove(output_filename)
+                await msg.delete()
             else:
-                await msg.edit_text(f"❌ Terabox server error: Status code {resp.status_code}")
+                await msg.edit_text("❌ Download fail ho gaya. Apni cookies.txt update karo kyunki purani cookie expire ho chuki hai.")
                 
         except Exception as e:
             if os.path.exists(output_filename):
