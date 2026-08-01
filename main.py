@@ -1,16 +1,16 @@
 import os
 import threading
 import wget
+import requests
 from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import yt_dlp
 
 app_web = Flask(__name__)
 
 @app_web.route('/')
 def home():
-    return "Terabox Bot is running!"
+    return "Terabox Bot is running with API!"
 
 def run_web():
     app_web.run(host="0.0.0.0", port=10000)
@@ -20,7 +20,8 @@ threading.Thread(target=run_web, daemon=True).start()
 API_ID = int(os.environ.get("API_ID", "YOUR_API_ID"))
 API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
-TERABOX_NDUS = os.environ.get("TERABOX_NDUS", "")
+TBX_API_KEY = os.environ.get("API_KEY", "")
+TBX_API_SECRET = os.environ.get("API_SECRET", "")
 
 app = Client("terabox_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -28,45 +29,39 @@ app = Client("terabox_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
-def get_video_with_ytdlp(url, ndus_cookie):
-    ydl_opts = {
-        'format': 'best',
-        'quiet': True,
-        'no_warnings': True,
-        'socket_timeout': 30,
-    }
+def get_video_from_api(terabox_url):
+    # TeraBox API endpoint integration using your keys
+    api_endpoint = "https://api.apify.com/v2/acts/scraper-mind~terabox-downloader/run-sync-get-dataset-items"
     
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        "Authorization": f"Bearer {TBX_API_KEY}",
+        "Content-Type": "application/json"
     }
     
-    if ndus_cookie:
-        headers['Cookie'] = f'ndus={ndus_cookie}'
-        
-    ydl_opts['http_headers'] = headers
-
+    payload = {
+        "url": terabox_url,
+        "secret": TBX_API_SECRET
+    }
+    
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if 'url' in info:
-                return info['url']
-            elif 'formats' in info:
-                for f in info['formats']:
-                    if f.get('url'):
-                        return f['url']
+        response = requests.post(api_endpoint, json=payload, headers=headers, timeout=60)
+        if response.status_code == 200:
+            data = response.json()
+            if data and isinstance(data, list):
+                return data[0].get("downloadLink") or data[0].get("url")
     except Exception as e:
-        print(f"YTDLP Error: {e}")
-        return None
+        print(f"API Error: {e}")
+        
     return None
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_terabox(client, message):
     text = message.text
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("🔍 Link se video extract ki ja rahi hai...")
+        msg = await message.reply_text("🔍 API ke through link process ho raha hai...")
         
         try:
-            direct_link = get_video_with_ytdlp(text, TERABOX_NDUS)
+            direct_link = get_video_from_api(text)
             
             if direct_link:
                 await msg.edit_text("📤 Video mil gayi, download karke bhej rahe hain...")
@@ -81,7 +76,7 @@ async def handle_terabox(client, message):
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Open Link Directly", url=text)]
             ])
-            await msg.edit_text("⚠️ Direct stream extract nahi ho paya. Neeche diye button se khol lo:", reply_markup=keyboard)
+            await msg.edit_text("⚠️ Direct video fetch nahi ho paya. Neeche diye button se khol lo:", reply_markup=keyboard)
             
         except Exception as e:
             await msg.edit_text(f"❌ Error: {str(e)}")
