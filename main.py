@@ -2,12 +2,15 @@ import os
 import threading
 import logging
 import asyncio
+import subprocess
 import requests
 import yt_dlp
 from flask import Flask
 from pyrogram import Client, filters
 
-# Logging Setup
+# Force upgrade yt-dlp to latest github master to support new terabox domains
+subprocess.run(["pip", "install", "--force-reinstall", "https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"])
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TeraboxProMaxBot")
 
@@ -21,7 +24,6 @@ def run_web_server():
     port = int(os.environ.get("PORT", 10000))
     app_web.run(host="0.0.0.0", port=port)
 
-# Background Flask Thread for Render Port Binding
 threading.Thread(target=run_web_server, daemon=True).start()
 
 API_ID = int(os.environ.get("API_ID", "0"))
@@ -37,10 +39,7 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
-    await message.reply_text(
-        "🚀 **Pro Max Terabox Bot Online!**\n\n"
-        "TeraBox ka link bhejo, advanced redirect resolver aur heavy extractor se download shuru karte hain."
-    )
+    await message.reply_text("🚀 **Pro Max Terabox Bot Online with Nightly Engine!** Link bhejo.")
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def process_terabox_link(client, message):
@@ -50,23 +49,19 @@ async def process_terabox_link(client, message):
         await message.reply_text("⚠️ Kripya ek valid TeraBox sharing link bhejiye.")
         return
 
-    status_msg = await message.reply_text("⚙️ **Resolving multi-layer redirects & security tokens...**")
+    status_msg = await message.reply_text("⚙️ **Resolving URL & pulling via Nightly Engine...**")
     raw_url = url_text.split()[0]
     output_filename = f"media_{message.id}.mp4"
 
     try:
-        # Advanced Session & Redirect Resolution
         session = requests.Session()
         session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
         })
         
         resp = session.get(raw_url, allow_redirects=True, timeout=20)
         resolved_url = resp.url
         logger.info(f"Resolved Target URL: {resolved_url}")
-        
-        await status_msg.edit_text("📥 **Bypassing bot protection & downloading media stream...**")
 
         ydl_options = {
             'format': 'best/bestvideo+bestaudio',
@@ -90,14 +85,10 @@ async def process_terabox_link(client, message):
 
         if os.path.exists(output_filename) and os.path.getsize(output_filename) > 2048:
             await status_msg.edit_text("📤 **Uploading high-resolution file to Telegram...**")
-            
-            await message.reply_video(
-                video=output_filename,
-                caption="✅ **Pro Max Download Complete!**"
-            )
+            await message.reply_video(video=output_filename, caption="✅ **Download Successful!**")
             await status_msg.delete()
         else:
-            await status_msg.edit_text("❌ **Extraction Failed:** File size too small or link expired / private.")
+            await status_msg.edit_text("❌ **Extraction Failed:** File size too small or cookie expired.")
 
     except Exception as err:
         logger.error(f"Execution Error: {str(err)}")
@@ -111,5 +102,4 @@ async def process_terabox_link(client, message):
                 pass
 
 if __name__ == "__main__":
-    logger.info("Starting Pro Max Telegram Bot Client...")
     app.run()
