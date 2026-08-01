@@ -1,12 +1,8 @@
 import os
 import threading
-import subprocess
-import yt_dlp
+import requests
 from flask import Flask
 from pyrogram import Client, filters
-
-# Automatically upgrade yt-dlp on startup to support latest terabox domains
-subprocess.run(["pip", "install", "--upgrade", "yt-dlp"])
 
 app_web = Flask(__name__)
 
@@ -27,37 +23,53 @@ app = Client("terabox_video_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BO
 
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
-    await message.reply_text("👋 Bot ready hai! TeraBox link bhejo, seedha video milti hai.")
+    await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_terabox(client, message):
     text = message.text.strip()
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("📥 Video download ho rahi hai, thoda wait karo...")
+        msg = await message.reply_text("📥 Link fetch ho raha hai...")
         
         clean_url = text.split()[0]
         output_filename = "video.mp4"
         
-        ydl_opts = {
-            'format': 'best',
-            'outtmpl': output_filename,
-            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
-            'quiet': True,
-        }
-        
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([clean_url])
+            # Using a public Terabox direct link fetching API approach
+            api_endpoint = f"https://terabox-dl-api.details-apis.workers.dev/?url={clean_url}"
+            
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(api_endpoint, headers=headers, timeout=30)
+            data = response.json()
+            
+            download_url = data.get("download_url") or data.get("url") or data.get("link")
+            
+            if not download_url:
+                # Fallback API try
+                api_endpoint_2 = f"https://teraboxwith-api.deta.dev/get?url={clean_url}"
+                res2 = requests.get(api_endpoint_2, headers=headers, timeout=30)
+                download_url = res2.json().get("download_url")
+
+            if download_url:
+                await msg.edit_text("📥 Video download ho rahi hai...")
+                vid_data = requests.get(download_url, stream=True, timeout=60)
                 
-            if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
-                await message.reply_video(
-                    video=output_filename,
-                    caption="✅ Yeh lo tumhari video!"
-                )
-                os.remove(output_filename)
-                await msg.delete()
+                with open(output_filename, 'wb') as f:
+                    for chunk in vid_data.iter_content(chunk_size=1024*1024):
+                        if chunk:
+                            f.write(chunk)
+                
+                if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
+                    await message.reply_video(
+                        video=output_filename,
+                        caption="✅ Yeh lo tumhari video!"
+                    )
+                    os.remove(output_filename)
+                    await msg.delete()
+                else:
+                    await msg.edit_text("❌ File download nahi ho payi.")
             else:
-                await msg.edit_text("❌ Video download nahi ho payi. File empty ya invalid hai.")
+                await msg.edit_text("❌ Direct link extract nahi ho paya. Link expired ya invalid hai.")
                 
         except Exception as e:
             if os.path.exists(output_filename):
