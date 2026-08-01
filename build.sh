@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
-set -o errexit
-pip install -r requirements.txt
-playwright install
+pyrogram==2.0.106
+tgcrypto==1.2.5
+Flask==3.1.3
+wget==3.2
+yt-dlp
