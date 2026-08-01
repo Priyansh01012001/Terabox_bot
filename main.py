@@ -1,8 +1,12 @@
 import os
 import threading
+import subprocess
 import yt_dlp
 from flask import Flask
 from pyrogram import Client, filters
+
+# Automatically upgrade yt-dlp on startup to support latest terabox domains
+subprocess.run(["pip", "install", "--upgrade", "yt-dlp"])
 
 app_web = Flask(__name__)
 
