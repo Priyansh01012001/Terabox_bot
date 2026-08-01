@@ -19,31 +19,25 @@ API_ID = int(os.environ.get("API_ID", "YOUR_API_ID"))
 API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
 
-# Yahan apni wahi ndus cookie ki value daal de jo screen par hai
-NDUS_COOKIE = "YVOf2LVPeHuiSROI62W-_icpi1Ifdv-FV_QuBXQ"
-
 app = Client("terabox_video_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
-    await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
+    await message.reply_text("👋 Bot ready hai! TeraBox link bhejo, seedha video milti hai.")
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_terabox(client, message):
     text = message.text.strip()
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("📥 Video download ho rahi hai...")
+        msg = await message.reply_text("📥 Video download ho rahi hai, thoda wait karo...")
         
         clean_url = text.split()[0]
         output_filename = "video.mp4"
         
-        # yt-dlp options with direct cookie header
         ydl_opts = {
             'format': 'best',
             'outtmpl': output_filename,
-            'http_headers': {
-                'Cookie': f'ndus={NDUS_COOKIE}'
-            },
+            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
             'quiet': True,
         }
         
@@ -59,7 +53,7 @@ async def handle_terabox(client, message):
                 os.remove(output_filename)
                 await msg.delete()
             else:
-                await msg.edit_text("❌ Video download nahi ho payi.")
+                await msg.edit_text("❌ Video download nahi ho payi. File empty ya invalid hai.")
                 
         except Exception as e:
             if os.path.exists(output_filename):
