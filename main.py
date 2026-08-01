@@ -33,7 +33,6 @@ async def get_direct_video_link(url, ndus_cookie):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            executable_path="/opt/render/.cache/ms-playwright/chromium-1155/chrome-linux/chrome",
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
         context = await browser.new_context()
