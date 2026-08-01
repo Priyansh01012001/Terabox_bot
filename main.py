@@ -2,14 +2,10 @@ import os
 import threading
 import logging
 import asyncio
-import subprocess
 import requests
 import yt_dlp
 from flask import Flask
 from pyrogram import Client, filters
-
-# Force upgrade yt-dlp to latest github master to support new terabox domains
-subprocess.run(["pip", "install", "--force-reinstall", "https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"])
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TeraboxProMaxBot")
@@ -39,7 +35,7 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
-    await message.reply_text("🚀 **Pro Max Terabox Bot Online with Nightly Engine!** Link bhejo.")
+    await message.reply_text("🚀 **Pro Max Terabox Bot Online!** Link bhejo.")
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def process_terabox_link(client, message):
@@ -49,7 +45,7 @@ async def process_terabox_link(client, message):
         await message.reply_text("⚠️ Kripya ek valid TeraBox sharing link bhejiye.")
         return
 
-    status_msg = await message.reply_text("⚙️ **Resolving URL & pulling via Nightly Engine...**")
+    status_msg = await message.reply_text("⚙️ **Resolving URL & downloading...**")
     raw_url = url_text.split()[0]
     output_filename = f"media_{message.id}.mp4"
 
