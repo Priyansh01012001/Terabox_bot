@@ -58,7 +58,7 @@ def get_video_from_api(terabox_url):
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_terabox(client, message):
-    text = message.text
+    text = message.text.strip()
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
         msg = await message.reply_text("🔍 API ke through link process ho raha hai...")
         
@@ -75,8 +75,10 @@ async def handle_terabox(client, message):
                     await msg.delete()
                     return
 
+            # Clean URL to prevent button error
+            clean_url = text.split()[0] if text else "https://terabox.com"
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📥 Open Link Directly", url=text)]
+                [InlineKeyboardButton("📥 Open Link Directly", url=clean_url)]
             ])
             await msg.edit_text("⚠️ Direct video fetch nahi ho paya. Neeche diye button se khol lo:", reply_markup=keyboard)
             
