@@ -31,18 +31,40 @@ async def start_command(client, message):
 
 async def get_direct_video_link(url, ndus_cookie):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-        )
+        browser = None
+        # Render ke liye multiple paths try karega taaki chromium mil jaye
+        possible_paths = [
+            "/opt/render/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+            "/opt/render/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
+            None
+        ]
+        
+        for path in possible_paths:
+            try:
+                launch_args = {
+                    "headless": True,
+                    "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+                }
+                if path and os.path.exists(path):
+                    launch_args["executable_path"] = path
+                
+                browser = await p.chromium.launch(**launch_args)
+                break
+            except Exception:
+                continue
+                
+        if not browser:
+            return None
+
         context = await browser.new_context()
         
-        await context.add_cookies([{
-            "name": "ndus",
-            "value": ndus_cookie,
-            "domain": ".terabox.com",
-            "path": "/"
-        }])
+        if ndus_cookie:
+            await context.add_cookies([{
+                "name": "ndus",
+                "value": ndus_cookie,
+                "domain": ".terabox.com",
+                "path": "/"
+            }])
         
         page = await context.new_page()
         download_url = None
@@ -50,7 +72,7 @@ async def get_direct_video_link(url, ndus_cookie):
         try:
             def handle_request(req):
                 nonlocal download_url
-                if ".mp4" in req.url or "d.terabox.com/file" in req.url:
+                if ".mp4" in req.url or "d.terabox.com/file" in req.url or "dl" in req.url:
                     download_url = req.url
 
             page.on("request", handle_request)
