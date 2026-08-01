@@ -37,14 +37,16 @@ async def handle_text(client, message):
         
         try:
             url = "https://terabox-downloader-and-player-api.p.rapidapi.com/get"
-            querystring = {"url": text}
+            
+            # Yahan 'url' ki jagah 'link' parameter bhejna hai jaisa API maang rahi hai
+            querystring = {"link": text}
+            
             headers = {
                 "Content-Type": "application/json",
                 "x-rapidapi-host": RAPIDAPI_HOST,
                 "x-rapidapi-key": RAPIDAPI_KEY
             }
 
-            # Yeh GET request hai query parameters ke sath
             response = requests.get(url, headers=headers, params=querystring, timeout=30)
             data = response.json()
             
@@ -59,7 +61,6 @@ async def handle_text(client, message):
             if direct_url:
                 await msg.edit_text("📥 Video download ho rahi hai, thoda wait karo...")
                 
-                # Video file ko chunk mein download karna
                 video_res = requests.get(direct_url, stream=True, timeout=120)
                 video_path = "downloaded_video.mp4"
                 
@@ -70,10 +71,8 @@ async def handle_text(client, message):
                 
                 await msg.edit_text("📤 Telegram par video upload ki ja rahi hai...")
                 
-                # Telegram par video file bhej dena
                 await message.reply_video(video=video_path, caption="✅ Yeh lo tumhari video!")
                 
-                # File delete karna server clean rakhne ke liye
                 if os.path.exists(video_path):
                     os.remove(video_path)
                     
