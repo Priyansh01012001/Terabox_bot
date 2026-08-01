@@ -31,7 +31,6 @@ async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
 def find_chromium_path():
-    # Render ke path par jaakar khud chromium ka executable dhund lega chahe version koi bhi ho
     patterns = [
         "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
         "/opt/render/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell",
@@ -49,7 +48,14 @@ async def get_direct_video_link(url, ndus_cookie):
         
         launch_options = {
             "headless": True,
-            "args": ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+            "args": [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+                "--no-zygote",
+                "--single-process"
+            ]
         }
         
         if executable_path and os.path.exists(executable_path):
@@ -61,7 +67,10 @@ async def get_direct_video_link(url, ndus_cookie):
             print(f"Browser Launch Failed: {e}")
             return None
 
-        context = await browser.new_context()
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
+        )
         
         if ndus_cookie:
             await context.add_cookies([{
@@ -77,12 +86,19 @@ async def get_direct_video_link(url, ndus_cookie):
         try:
             def handle_request(req):
                 nonlocal download_url
-                if ".mp4" in req.url or "d.terabox.com/file" in req.url:
+                if any(ext in req.url for ext in [".mp4", "d.terabox.com", "m3u8", "ts", "streaming"]):
                     download_url = req.url
 
             page.on("request", handle_request)
             await page.goto(url, timeout=60000)
-            await asyncio.sleep(7)
+            await asyncio.sleep(10)
+            
+            try:
+                await page.click("text=Download", timeout=3000)
+                await asyncio.sleep(3)
+            except:
+                pass
+                
         except Exception as e:
             print(f"Playwright Error: {e}")
             
