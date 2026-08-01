@@ -1,18 +1,16 @@
 import os
-import glob
 import threading
-import asyncio
 import wget
 from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from playwright.async_api import async_playwright
+import yt_dlp
 
 app_web = Flask(__name__)
 
 @app_web.route('/')
 def home():
-    return "Playwright Terabox Bot is running!"
+    return "Terabox Bot is running!"
 
 def run_web():
     app_web.run(host="0.0.0.0", port=10000)
@@ -30,89 +28,33 @@ app = Client("terabox_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
-def find_chromium_path():
-    patterns = [
-        "/opt/render/.cache/ms-playwright/chromium-*/chrome-linux64/chrome",
-        "/opt/render/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell",
-        "/root/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"
-    ]
-    for pattern in patterns:
-        matches = glob.glob(pattern)
-        if matches:
-            return matches[0]
-    return None
+def get_video_with_ytdlp(url, ndus_cookie):
+    ydl_opts = {
+        'format': 'best',
+        'quiet': True,
+        'no_warnings': True,
+    }
+    if ndus_cookie:
+        # Cookies pass karne ke liye headers ya cookie file use hoti hai
+        ydl_opts['http_headers'] = {'Cookie': f'ndus={ndus_cookie}'}
 
-async def get_direct_video_link(url, ndus_cookie):
-    async with async_playwright() as p:
-        executable_path = find_chromium_path()
-        
-        launch_options = {
-            "headless": True,
-            "args": [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-                "--no-zygote",
-                "--single-process"
-            ]
-        }
-        
-        if executable_path and os.path.exists(executable_path):
-            launch_options["executable_path"] = executable_path
-
-        try:
-            browser = await p.chromium.launch(**launch_options)
-        except Exception as e:
-            print(f"Browser Launch Failed: {e}")
-            return None
-
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            viewport={"width": 1280, "height": 800}
-        )
-        
-        if ndus_cookie:
-            await context.add_cookies([{
-                "name": "ndus",
-                "value": ndus_cookie,
-                "domain": ".terabox.com",
-                "path": "/"
-            }])
-        
-        page = await context.new_page()
-        download_url = None
-        
-        try:
-            def handle_request(req):
-                nonlocal download_url
-                if any(ext in req.url for ext in [".mp4", "d.terabox.com", "m3u8", "ts", "streaming"]):
-                    download_url = req.url
-
-            page.on("request", handle_request)
-            await page.goto(url, timeout=60000)
-            await asyncio.sleep(10)
-            
-            try:
-                await page.click("text=Download", timeout=3000)
-                await asyncio.sleep(3)
-            except:
-                pass
-                
-        except Exception as e:
-            print(f"Playwright Error: {e}")
-            
-        await browser.close()
-        return download_url
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            # Direct video download link nikal lega
+            return info.get('url') or ydl.prepare_filename(info)
+    except Exception as e:
+        print(f"YTDLP Error: {e}")
+        return None
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def handle_terabox(client, message):
     text = message.text
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("🔍 Browser se video extract ki ja rahi hai...")
+        msg = await message.reply_text("🔍 Link se video extract ki ja rahi hai...")
         
         try:
-            direct_link = await get_direct_video_link(text, TERABOX_NDUS)
+            direct_link = get_video_with_ytdlp(text, TERABOX_NDUS)
             
             if direct_link:
                 await msg.edit_text("📤 Video mil gayi, download karke bhej rahe hain...")
