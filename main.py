@@ -2,19 +2,20 @@ import os
 import threading
 import logging
 import asyncio
+import requests
 import yt_dlp
 from flask import Flask
 from pyrogram import Client, filters
 
 # Logging Setup
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("TeraboxBot")
+logger = logging.getLogger("TeraboxProMaxBot")
 
 app_web = Flask(__name__)
 
 @app_web.route('/')
 def health_check():
-    return "Heavy Terabox Bot is active and running!", 200
+    return "Pro Max Terabox Bot is active and running!", 200
 
 def run_web_server():
     port = int(os.environ.get("PORT", 10000))
@@ -28,7 +29,7 @@ API_HASH = os.environ.get("API_HASH", "")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 
 app = Client(
-    "terabox_heavy_bot",
+    "terabox_promax_bot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
@@ -37,39 +38,53 @@ app = Client(
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
     await message.reply_text(
-        "🚀 **Heavy Terabox Bot Online!**\n\n"
-        "TeraBox ka link bhejo, high-speed extraction shuru karte hain."
+        "🚀 **Pro Max Terabox Bot Online!**\n\n"
+        "TeraBox ka link bhejo, advanced redirect resolver aur heavy extractor se download shuru karte hain."
     )
 
 @app.on_message(filters.text & ~filters.command("start"))
 async def process_terabox_link(client, message):
     url_text = message.text.strip()
     
-    if not any(domain in url_text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
+    if not any(domain in url_text.lower() for domain in ["terabox", "terashare", "1024tera", "tera", "nephobox", "freedl"]):
         await message.reply_text("⚠️ Kripya ek valid TeraBox sharing link bhejiye.")
         return
 
-    status_msg = await message.reply_text("⚙️ **Initializing heavy extraction stream...**")
-    target_url = url_text.split()[0]
+    status_msg = await message.reply_text("⚙️ **Resolving multi-layer redirects & security tokens...**")
+    raw_url = url_text.split()[0]
     output_filename = f"media_{message.id}.mp4"
 
-    ydl_options = {
-        'format': 'best/bestvideo+bestaudio',
-        'outtmpl': output_filename,
-        'cookiefile': 'Cookies.txt' if os.path.exists('Cookies.txt') else None,
-        'noplaylist': True,
-        'quiet': False,
-        'no_warnings': False,
-    }
-
     try:
-        await status_msg.edit_text("📥 **Bypassing security & downloading payload...**")
+        # Advanced Session & Redirect Resolution
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        })
         
-        # Run yt-dlp in an async executor to prevent blocking the event loop
+        resp = session.get(raw_url, allow_redirects=True, timeout=20)
+        resolved_url = resp.url
+        logger.info(f"Resolved Target URL: {resolved_url}")
+        
+        await status_msg.edit_text("📥 **Bypassing bot protection & downloading media stream...**")
+
+        ydl_options = {
+            'format': 'best/bestvideo+bestaudio',
+            'outtmpl': output_filename,
+            'cookiefile': 'Cookies.txt' if os.path.exists('Cookies.txt') else None,
+            'noplaylist': True,
+            'quiet': True,
+            'nocheckcertificate': True,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Cookie': 'ndus=YVOf2LVPeHuiSROI62W-_icpi1Ifdv-FV_QuBXQ'
+            }
+        }
+        
         loop = asyncio.get_running_loop()
         def download_task():
             with yt_dlp.YoutubeDL(ydl_options) as ydl:
-                ydl.download([target_url])
+                ydl.download([resolved_url])
 
         await loop.run_in_executor(None, download_task)
 
@@ -78,18 +93,17 @@ async def process_terabox_link(client, message):
             
             await message.reply_video(
                 video=output_filename,
-                caption="✅ **Heavy Download Complete!** Powered by custom pipeline."
+                caption="✅ **Pro Max Download Complete!**"
             )
             await status_msg.delete()
         else:
-            await status_msg.edit_text("❌ **Extraction Failed:** File size too small or link invalid.")
+            await status_msg.edit_text("❌ **Extraction Failed:** File size too small or link expired / private.")
 
     except Exception as err:
         logger.error(f"Execution Error: {str(err)}")
-        await status_msg.edit_text(f"❌ **Critical Error:** `{str(err)[:100]}`")
+        await status_msg.edit_text(f"❌ **Critical Error:** `{str(err)[:120]}`")
 
     finally:
-        # Cleanup residual storage files
         if os.path.exists(output_filename):
             try:
                 os.remove(output_filename)
@@ -97,5 +111,5 @@ async def process_terabox_link(client, message):
                 pass
 
 if __name__ == "__main__":
-    logger.info("Starting Telegram Bot Client...")
+    logger.info("Starting Pro Max Telegram Bot Client...")
     app.run()
