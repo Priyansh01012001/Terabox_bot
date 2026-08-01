@@ -30,7 +30,6 @@ async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
 
 def get_video_from_api(terabox_url):
-    # TeraBox API endpoint integration using your keys
     api_endpoint = "https://api.apify.com/v2/acts/scraper-mind~terabox-downloader/run-sync-get-dataset-items"
     
     headers = {
@@ -45,6 +44,9 @@ def get_video_from_api(terabox_url):
     
     try:
         response = requests.post(api_endpoint, json=payload, headers=headers, timeout=60)
+        print(f"API Status Code: {response.status_code}")
+        print(f"API Response: {response.text}")
+        
         if response.status_code == 200:
             data = response.json()
             if data and isinstance(data, list):
