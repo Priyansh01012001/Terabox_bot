@@ -29,47 +29,56 @@ async def start_command(client, message):
 async def handle_terabox(client, message):
     text = message.text.strip()
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("📥 Link fetch ho raha hai...")
+        msg = await message.reply_text("📥 Link process ho raha hai...")
         
         clean_url = text.split()[0]
         output_filename = "video.mp4"
         
         try:
-            # Using a public Terabox direct link fetching API approach
-            api_endpoint = f"https://terabox-dl-api.details-apis.workers.dev/?url={clean_url}"
+            session = requests.Session()
+            # Load cookie if exists
+            cookies = {}
+            if os.path.exists('cookies.txt'):
+                cookies['ndus'] = "YVOf2LVPeHuiSROI62W-_icpi1Ifdv-FV_QuBXQ"
             
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            response = requests.get(api_endpoint, headers=headers, timeout=30)
-            data = response.json()
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.terabox.com/'
+            }
             
-            download_url = data.get("download_url") or data.get("url") or data.get("link")
+            # Request sharing page
+            resp = session.get(clean_url, headers=headers, cookies=cookies, allow_redirects=True, timeout=30)
             
-            if not download_url:
-                # Fallback API try
-                api_endpoint_2 = f"https://teraboxwith-api.deta.dev/get?url={clean_url}"
-                res2 = requests.get(api_endpoint_2, headers=headers, timeout=30)
-                download_url = res2.json().get("download_url")
-
-            if download_url:
-                await msg.edit_text("📥 Video download ho rahi hai...")
-                vid_data = requests.get(download_url, stream=True, timeout=60)
+            if resp.status_code == 200:
+                # Basic extraction logic for direct stream
+                # If direct page html contains dlink, grab it
+                import re
+                dlink_match = re.search(r'"dlink"\s*:\s*"([^"]+)"', resp.text)
                 
-                with open(output_filename, 'wb') as f:
-                    for chunk in vid_data.iter_content(chunk_size=1024*1024):
-                        if chunk:
-                            f.write(chunk)
-                
-                if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
-                    await message.reply_video(
-                        video=output_filename,
-                        caption="✅ Yeh lo tumhari video!"
-                    )
-                    os.remove(output_filename)
-                    await msg.delete()
+                if dlink_match:
+                    download_url = dlink_match.group(1).replace(r'\/', '/')
+                    
+                    await msg.edit_text("📥 Video download ho rahi hai...")
+                    vid_data = session.get(download_url, headers=headers, cookies=cookies, stream=True, timeout=60)
+                    
+                    with open(output_filename, 'wb') as f:
+                        for chunk in vid_data.iter_content(chunk_size=1024*1024):
+                            if chunk:
+                                f.write(chunk)
+                                
+                    if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
+                        await message.reply_video(
+                            video=output_filename,
+                            caption="✅ Yeh lo tumhari video!"
+                        )
+                        os.remove(output_filename)
+                        await msg.delete()
+                    else:
+                        await msg.edit_text("❌ File download nahi ho payi.")
                 else:
-                    await msg.edit_text("❌ File download nahi ho payi.")
+                    await msg.edit_text("❌ Cookies ya link expired hai, dlink nahi mila page par.")
             else:
-                await msg.edit_text("❌ Direct link extract nahi ho paya. Link expired ya invalid hai.")
+                await msg.edit_text(f"❌ Terabox server error: Status code {resp.status_code}")
                 
         except Exception as e:
             if os.path.exists(output_filename):
