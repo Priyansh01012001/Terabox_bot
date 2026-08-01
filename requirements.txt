@@ -1,6 +1,5 @@
 pyrogram
 tgcrypto
 flask
+yt-dlp
 requests
-beautifulsoup4
-
