@@ -28,7 +28,8 @@ app = Client("terabox_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
     await message.reply_text("👋 Bot ready hai! TeraBox link bhejo.")
-    async def get_direct_video_link(url, ndus_cookie):
+
+async def get_direct_video_link(url, ndus_cookie):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True, 
@@ -42,6 +43,7 @@ async def start_command(client, message):
             "domain": ".terabox.com",
             "path": "/"
         }])
+        
         page = await context.new_page()
         download_url = None
         
