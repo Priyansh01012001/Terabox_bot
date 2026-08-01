@@ -1,12 +1,8 @@
 import os
 import threading
-import subprocess
-import yt_dlp
+import requests
 from flask import Flask
 from pyrogram import Client, filters
-
-# Upgrade yt-dlp on startup
-subprocess.run(["pip", "install", "--upgrade", "yt-dlp"])
 
 app_web = Flask(__name__)
 
@@ -33,31 +29,47 @@ async def start_command(client, message):
 async def handle_terabox(client, message):
     text = message.text.strip()
     if any(domain in text.lower() for domain in ["terabox", "terashare", "1024tera", "tera"]):
-        msg = await message.reply_text("📥 Video download ho rahi hai...")
+        msg = await message.reply_text("📥 Link process ho raha hai...")
         
         clean_url = text.split()[0]
         output_filename = "video.mp4"
         
-        ydl_opts = {
-            'format': 'best',
-            'outtmpl': output_filename,
-            'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
-            'quiet': True,
-        }
-        
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([clean_url])
+            session = requests.Session()
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Cookie': 'ndus=YVOf2LVPeHuiSROI62W-_icpi1Ifdv-FV_QuBXQ'
+            }
+            
+            # Fetching through a stable public parser API designed for direct streaming
+            api_url = f"https://terabox-dl.pages.dev/api?url={clean_url}"
+            res = session.get(api_url, timeout=30)
+            data = res.json()
+            
+            download_url = data.get("downloadLink") or data.get("dlink") or data.get("url")
+            
+            if download_url:
+                await msg.edit_text("📥 Video download ho rahi hai...")
+                vid_res = session.get(download_url, stream=True, timeout=60)
                 
-            if os.path.exists(output_filename) and os.path.getsize(output_filename) > 0:
-                await message.reply_video(
-                    video=output_filename,
-                    caption="✅ Yeh lo tumhari video!"
-                )
-                os.remove(output_filename)
-                await msg.delete()
+                with open(output_filename, 'wb') as f:
+                    for chunk in vid_res.iter_content(chunk_size=1024*1024):
+                        if chunk:
+                            f.write(chunk)
+                            
+                if os.path.exists(output_filename) and os.path.getsize(output_filename) > 1000:
+                    await message.reply_video(
+                        video=output_filename,
+                        caption="✅ Yeh lo tumhari video!"
+                    )
+                    os.remove(output_filename)
+                    await msg.delete()
+                else:
+                    if os.path.exists(output_filename):
+                        os.remove(output_filename)
+                    await msg.edit_text("❌ Download ki gayi file incomplete hai.")
             else:
-                await msg.edit_text("❌ Download fail ho gaya. Apni cookies.txt update karo kyunki purani cookie expire ho chuki hai.")
+                await msg.edit_text("❌ Direct download link extract nahi ho paya.")
                 
         except Exception as e:
             if os.path.exists(output_filename):
